@@ -1,0 +1,16 @@
+name: update
+
+on:
+  schedule:
+    - cron: "17 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hi
