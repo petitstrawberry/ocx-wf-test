@@ -1,0 +1,39 @@
+name: v17
+
+on:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    needs: darwin
+    if: needs.darwin.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: Update version and x86_64-linux hashes
+        run: ./scripts/update.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Commit and push
+        id: commit
+        run: |
+          if git diff --quiet -- version.json bun.lock.normalized; then
+            echo "No changes"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json bun.lock.normalized
+          VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          git commit -m "chore: refresh opencodex ${VERSION} build metadata"
+          git push origin HEAD:bot/opencodex-update --force
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+
