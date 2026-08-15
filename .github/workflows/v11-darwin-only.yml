@@ -1,0 +1,32 @@
+name: updatetest2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  darwin:
+    needs: linux
+    if: needs.linux.outputs.changed == 'true'
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: bot/opencodex-update
+      - uses: DeterminateSystems/nix-installer-action@v16
+      - uses: DeterminateSystems/magic-nix-cache-action@v9
+      - name: Compute aarch64-darwin bunDeps hash
+        run: ./scripts/update-darwin.sh
+      - name: Commit and push
+        run: |
+          if git diff --quiet -- version.json; then
+            echo "No darwin hash change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          VERSION="$(python3 -c 'import json; print(json.load(open("version.json"))["version"])')"
+          git commit -m "chore: add aarch64-darwin bunDeps hash for opencodex ${VERSION}"
+          git push origin HEAD:bot/opencodex-update
+
+

@@ -1,0 +1,38 @@
+name: updatetest2
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pr:
+    needs: darwin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create or update pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main bot/opencodex-update
+          OLD_VERSION="$(git show origin/main:version.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          NEW_VERSION="$(git show origin/bot/opencodex-update:version.json | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          if [[ "$OLD_VERSION" != "$NEW_VERSION" ]]; then
+            TITLE="chore: bump opencodex to ${NEW_VERSION}"
+          else
+            TITLE="chore: refresh opencodex build metadata (${NEW_VERSION})"
+          fi
+          BODY="Automated update of the pinned opencodex version/hashes by the daily update workflow.
+
+- Version: ${NEW_VERSION}
+- src hash and x86_64-linux / aarch64-darwin bunDeps hashes refreshed as needed
+- normalized bun.lock regenerated on version bumps
+
+CI (ci.yml) verifies the build on both platforms. Merge to publish."
+          if gh pr view bot/opencodex-update --json number >/dev/null 2>&1; then
+            echo "PR already exists; leaving as is"
+          else
+            gh pr create --base main --head bot/opencodex-update --title "$TITLE" --body "$BODY"
+          fi
+
